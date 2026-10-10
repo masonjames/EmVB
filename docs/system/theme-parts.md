@@ -82,7 +82,7 @@ Default on create: `{ open: [{ type: "page_load" }], advanced: {} }`.
 
 ## Dynamic bindings (S7d)
 
-Public HTML stays JS-free (R-031) except in two cases: a matching popup loads `emvb/astro/popups` (`EmVBPopupsRuntime`), and a matching float loads `emvb/astro/floats` (`EmVBFloatsRuntime`). Same optional pattern as Forms. When resolving a winning `single_post` or `archive` part, `resolveThemeParts` loads EmDash posts and passes `ThemeDynamicData` into `renderPage`:
+Public HTML stays JS-free (R-031) except in two cases: a matching popup loads `emvb/astro/popups` (`EmVBPopupsRuntime`), and a matching float loads `emvb/astro/floats` (`EmVBFloatsRuntime`). Same optional pattern as Forms, which work in theme parts too: a Form in a part that renders (header, footer, content, popup or float) gets its form definition, as on a page, and sets `needsFormsRuntime`. When resolving a winning `single_post` or `archive` part, `resolveThemeParts` loads EmDash posts and passes `ThemeDynamicData` into `renderPage`:
 
 | Element | Public output |
 |---|---|
@@ -113,6 +113,7 @@ Hosts call `resolveThemeParts(Astro, ctx, options)` from `emvb/astro`. `options.
 - `css` — concatenated CSS for all winners (includes popup chrome CSS when popups match, and float chrome when floats match)
 - `needsPopupsRuntime` — when true, host renders `<EmVBPopupsRuntime />` from `emvb/astro/popups`
 - `needsFloatsRuntime` — when true, host renders `<EmVBFloatsRuntime />` from `emvb/astro/floats`
+- `needsFormsRuntime` — a part that renders has a Form; host renders `<EmVBFormsRuntime />` from `emvb/astro/forms`. Astro includes its script once per page, so a route that also renders it for the page body is fine
 - `notFound` — an archive page past the last one (`/posts/page/9` with no posts there); answer 404. Page 1 with no posts is not a 404 (W-221)
 - `canonicalPath` — the archive page's canonical path: the bare archive path for page 1 (redirect `/page/1` there, 301), else `<archive>/page/N`
 - `archiveTitle` / `archivePage` — the winning Archive part's title (e.g. "Posts", the category name) and the page number; build the paged `<title>` with `archivePageTitle(title, page)` from `@perkyzz/emvb/astro` ("Posts – page 2", W-229)

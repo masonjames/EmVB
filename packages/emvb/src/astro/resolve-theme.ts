@@ -31,6 +31,7 @@ import {
   type ArchivePagination,
 } from "../core/index.ts";
 import { THEME_PARTS_COLLECTION } from "../constants.ts";
+import { formIdsInLayout, loadFormDefinitions } from "./forms-definitions.ts";
 import { loadDesign, readLayout, renderStored, type RenderedPage } from "./render.ts";
 import type { HostVisitor, VisitorAstro } from "./visitor.ts";
 import { bindingDataFor } from "./request-data.ts";
@@ -85,6 +86,8 @@ export type ResolvedThemeParts = {
   needsPopupsRuntime: boolean;
   /** Hosts load `EmVBFloatsRuntime` only when a float matches (R-031). */
   needsFloatsRuntime: boolean;
+  /** Hosts load `EmVBFormsRuntime` only when a part that renders has a Form (R-031). */
+  needsFormsRuntime: boolean;
   /** Hosts load `EmVBTabsRuntime` only when Tabs appear in a winning part (R-031 / W-078). */
   needsTabsRuntime: boolean;
   /** Hosts load `EmVBMenuRuntime` only when a winning part has a Menu dropdown (W-197). */
@@ -354,6 +357,7 @@ export async function resolveThemeParts(
     css: "",
     needsPopupsRuntime: false,
     needsFloatsRuntime: false,
+    needsFormsRuntime: false,
     needsTabsRuntime: false,
     needsMenuRuntime: false,
     notFound: false,
@@ -393,6 +397,18 @@ export async function resolveThemeParts(
   const design = await loadDesign(handler, astro.url);
 
   const byId = new Map(parts.map((part) => [part.id, part]));
+  // Forms in the parts that render get their definitions, as forms on a page do: one load for
+  // every part, and each part renders with its own forms' definitions only.
+  const formIdsByPart = new Map(
+    [headerWinner, footerWinner, contentWinner, ...popupMatches, ...floatMatches]
+      .filter((winner): winner is ThemePartCandidate => winner !== null)
+      .map((winner) => {
+        const layout = readLayout(byId.get(winner.id)?.layout);
+        return [winner.id, layout ? formIdsInLayout(layout) : []] as const;
+      }),
+  );
+  const formIds = new Set([...formIdsByPart.values()].flat());
+  const formDefinitions = await loadFormDefinitions(handler, astro.url, [...formIds]);
   const rendered: RenderedPage[] = [];
   // W-307: bound fields in a part read site settings and URL parameters too.
   // W-312/W-313: synced sections and Loop items the part uses count too.
@@ -413,7 +429,10 @@ export async function resolveThemeParts(
     bound: Awaited<ReturnType<typeof bindingDataFor>>,
   ) => {
     const dynamic = Object.keys(bound).length > 0 ? { ...partDynamic, ...bound } : partDynamic;
-    const page = renderStored(stored.layout, design, stored.id, undefined, dynamic);
+    const partDefinitions = new Map(
+      [...formDefinitions].filter(([formId]) => formIdsByPart.get(stored.id)?.includes(formId)),
+    );
+    const page = renderStored(stored.layout, design, stored.id, partDefinitions, dynamic);
     rendered.push(page);
     // W-216: a header or footer part is the page's banner or contentinfo landmark (hosts put it
     // straight in <body> instead of their own <header>/<footer>).
@@ -542,6 +561,7 @@ export async function resolveThemeParts(
     css,
     needsPopupsRuntime: popups.length > 0,
     needsFloatsRuntime: floats.length > 0,
+    needsFormsRuntime: rendered.some((page) => page.needsFormsRuntime),
     needsTabsRuntime: rendered.some((page) => page.needsTabsRuntime),
     needsMenuRuntime: rendered.some((page) => page.needsMenuRuntime),
     notFound: pastLastPage,

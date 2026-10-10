@@ -27504,6 +27504,91 @@
         "its examples and stated schema version match the code"
       ],
       "expect": "\\(fail\\).*its examples and stated schema version match the code"
+    },
+    {
+      "id": "theme/part-forms-no-definitions",
+      "requirement": "R-062",
+      "description": "forms inside theme parts render without their form definitions",
+      "edits": [
+        {
+          "file": "packages/emvb/src/astro/resolve-theme.ts",
+          "search": "partDefinitions, dynamic)",
+          "replace": "undefined, dynamic)"
+        }
+      ],
+      "command": [
+        "bun",
+        "test",
+        "./packages/emvb/src/astro/resolve-theme.test.ts",
+        "-t",
+        "a form inside a theme part gets its definition and the page reports the forms runtime"
+      ],
+      "expect": "\\(fail\\).*a form inside a theme part gets its definition and the page reports the forms runtime"
+    },
+    {
+      "id": "theme/part-forms-shared-definitions",
+      "requirement": "R-062",
+      "description": "every theme part renders with all the request's form definitions, so forms with a same-named field swap options",
+      "edits": [
+        {
+          "file": "packages/emvb/src/astro/resolve-theme.ts",
+          "search": "partDefinitions, dynamic)",
+          "replace": "formDefinitions, dynamic)"
+        }
+      ],
+      "command": [
+        "bun",
+        "test",
+        "./packages/emvb/src/astro/resolve-theme.test.ts",
+        "-t",
+        "a form inside a theme part gets its definition and the page reports the forms runtime"
+      ],
+      "expect": "\\(fail\\).*a form inside a theme part gets its definition and the page reports the forms runtime"
+    },
+    {
+      "id": "demo-node/theme-forms-runtime-unmounted",
+      "requirement": "R-040",
+      "description": "the Node demo layout no longer loads the forms runtime for theme parts",
+      "edits": [
+        {
+          "file": "demos/node/src/layouts/Base.astro",
+          "search": "\t\t{theme.needsFormsRuntime && <EmVBFormsRuntime />}\n",
+          "replace": ""
+        }
+      ],
+      "command": [
+        "bun",
+        "run",
+        "e2e",
+        "e2e/forms.e2e.ts",
+        "--project=node",
+        "-g",
+        "a form in a published header has its fields and submits on a page with no body form"
+      ],
+      "env": {
+        "CI": "1"
+      },
+      "expect": "✘.*\\[node\\].*a form in a published header has its fields and submits on a page with no body form"
+    },
+    {
+      "id": "theme/empty-parts-no-forms-flag",
+      "requirement": "R-062",
+      "description": "a request with no theme parts leaves out the forms runtime flag",
+      "edits": [
+        {
+          "file": "packages/emvb/src/astro/resolve-theme.ts",
+          "search": "    needsFormsRuntime: false,\n",
+          "replace": ""
+        }
+      ],
+      "command": [
+        "bun",
+        "test",
+        "./packages/emvb/src/astro/resolve-theme.test.ts",
+        "-t",
+        "no published parts resolves to nothing"
+      ],
+      "expect": "\\(fail\\).*no published parts resolves to nothing"
     }
   ]
 }

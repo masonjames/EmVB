@@ -102,6 +102,8 @@ Blank-canvas EmVB pages use `standalone` on `EmVBPage` (see the demos).
 
 `@perkyzz/emvb/astro/forms` imports the forms plugin's client script, so import `EmVBFormsRuntime` only when `@emdash-cms/plugin-forms` is installed. Without it the build fails with `"initForms" is not exported`; drop that import and the `EmVBFormsRuntime` element.
 
+If your site layout renders theme parts with `resolveThemeParts`, a theme part such as a header, footer or popup can hold a form too: render `{theme.needsFormsRuntime && <EmVBFormsRuntime />}` in the layout, beside the other theme-part runtimes, as the demos' `src/layouts/Base.astro` does. Astro includes the script once even when the page body renders it as well.
+
 ### Tell EmVB what you know about the visitor
 
 An element's **Visitors** rules can show it only to visitors in a segment, such as members or paying customers. EmVB can't know that on its own, so your route passes it:

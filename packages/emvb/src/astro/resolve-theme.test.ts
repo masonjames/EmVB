@@ -3,6 +3,7 @@ import * as realEmDash from "emdash";
 import { THEME_PARTS_COLLECTION } from "../constants.ts";
 import {
   defaultConditionsFor,
+  defaultElement,
   defaultTriggers,
   POPUP_CHROME_CSS,
   type LayoutNode,
@@ -115,6 +116,7 @@ describe("resolveThemeParts (R-062)", () => {
       css: "",
       needsPopupsRuntime: false,
       needsFloatsRuntime: false,
+      needsFormsRuntime: false,
       needsTabsRuntime: false,
       needsMenuRuntime: false,
       notFound: false,
@@ -380,6 +382,75 @@ describe("resolveThemeParts (R-062)", () => {
     expect((await resolveThemeParts(astro("/about"))).needsTabsRuntime).toBe(true);
     themeEntries = [header, part("POPUP001", "popup", [tabs])];
     expect((await resolveThemeParts(astro("/about"))).needsTabsRuntime).toBe(true);
+  });
+
+  test("a form inside a theme part gets its definition and the page reports the forms runtime", async () => {
+    const calls: string[] = [];
+    // Two forms, each with a `topic` select, but with different options.
+    const contact = ["Sales", "Support"];
+    const news = ["Weekly", "Monthly"];
+    // EmDash's in-process public plugin routes: the design, and the forms plugin's definitions.
+    const handlePublicPluginApiRoute = async (
+      _plugin: string,
+      method: string,
+      path: string,
+      request: Request,
+    ) => {
+      const body = await request.text();
+      calls.push(`${method} ${path} ${body}`);
+      if (path !== "/definition") return {};
+      const { id } = JSON.parse(body) as { id: string };
+      const labels = id === "contact" ? contact : news;
+      const options = labels.map((label) => ({ label, value: label.toLowerCase() }));
+      const topic = { name: "topic", type: "select", label: "Topic", required: false, options };
+      return {
+        success: true,
+        data: { name: id, slug: id, settings: {}, pages: [{ fields: [topic] }] },
+      };
+    };
+    const at = (path: string) => ({
+      ...astro(path),
+      locals: { emdash: { handlePublicPluginApiRoute } },
+    });
+    const form = (id: string, formId: string) =>
+      ({
+        ...defaultElement("form", id),
+        props: { formId },
+        children: [{ id: "sele0001", type: "select", props: { field: "topic", label: "Topic" } }],
+      }) as LayoutNode;
+    /** The select's whole option list: the blank choice, then exactly these options. */
+    const select = (labels: string[]) => {
+      const options = labels.map((l) => `<option value="${l.toLowerCase()}">${l}</option>`);
+      return `<option value="">Choose…</option>${options.join("")}</select>`;
+    };
+    const float = part("FLOAT001", "float", [form("form0003", "news")]);
+    const footer = part("FOOT0001", "footer", [heading("head0001", "Footer")]);
+    themeEntries = [
+      part("HEAD0001", "header", [form("form0001", "contact")]),
+      part("POPUP001", "popup", [form("form0002", "contact")]),
+      float,
+      footer,
+    ];
+    const resolved = await resolveThemeParts(at("/about"));
+    // Each part shows its own form's options, though both forms have a `topic` field.
+    expect(resolved.header?.html).toContain(select(contact));
+    expect(resolved.popups[0]?.html).toContain(select(contact));
+    expect(resolved.floats[0]?.html).toContain(select(news));
+    expect(resolved.needsFormsRuntime).toBe(true);
+    // One request per form, however many parts hold it.
+    expect(calls.toSorted()).toEqual([
+      "GET /design ",
+      'POST /definition {"id":"contact"}',
+      'POST /definition {"id":"news"}',
+    ]);
+
+    // A float alone turns the runtime on; parts without forms ask for no definitions.
+    themeEntries = [float];
+    expect((await resolveThemeParts(at("/about"))).needsFormsRuntime).toBe(true);
+    calls.length = 0;
+    themeEntries = [footer];
+    expect((await resolveThemeParts(at("/about"))).needsFormsRuntime).toBe(false);
+    expect(calls).toEqual(["GET /design "]);
   });
 
   test("a single-post part fills post fields from the post at /posts/<slug>", async () => {

@@ -12,6 +12,7 @@ import {
 	type ResolvedThemeParts,
 } from "@perkyzz/emvb/astro";
 import { EmVBFloatsRuntime } from "@perkyzz/emvb/astro/floats";
+import { EmVBFormsRuntime } from "@perkyzz/emvb/astro/forms";
 import { EmVBPopupsRuntime } from "@perkyzz/emvb/astro/popups";
 import { EmVBMenuRuntime } from "@perkyzz/emvb/astro/menu";
 import { EmVBTabsRuntime } from "@perkyzz/emvb/astro/tabs";
@@ -161,6 +162,7 @@ const pageCtx = createPublicPageContext({
 		}
 		{theme.needsPopupsRuntime && <EmVBPopupsRuntime />}
 		{theme.needsFloatsRuntime && <EmVBFloatsRuntime />}
+		{theme.needsFormsRuntime && <EmVBFormsRuntime />}
 		{theme.needsTabsRuntime && <EmVBTabsRuntime />}
 		{theme.needsMenuRuntime && <EmVBMenuRuntime />}
 
